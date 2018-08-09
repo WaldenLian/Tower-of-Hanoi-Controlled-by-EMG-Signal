@@ -2,14 +2,14 @@
 MagicCookie={0b13fe8c-dfe0-40eb-8900-6712719559a7}
 Version=1.0
 [File000]
-Location=Y:\Desktop\Tower-of-Hanoi-Controlled-by-EMG-Signal\pwm.o
+Location=Y:\Desktop\Tower-of-Hanoi-Controlled-by-EMG-Signal\try3.o
 Folder=Intermediary
 DeviceName=PIC32MX795F512L
 LanguageToolSuiteID={14495C23-81F8-43F3-8A44-859C583D7760}
 LanguageToolID={430F471F-7ECB-4852-A80D-DEF9A5C8E751}
 LanguageToolLocation=C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\bin\pic32-gcc.exe
 PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)|C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\lib;C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\pic32mx\lib;||$(LKRDIR)||
-SOLK=<src>|src\pwm.c||<obj>||<lib>||<lkr>||
+SOLK=<src>|src\try3.c||<obj>||<lib>||<lkr>||
 SuiteArgsString=
 ToolArgsString=-g
 TraceCmdString=
@@ -22,7 +22,7 @@ LanguageToolSuiteID={14495C23-81F8-43F3-8A44-859C583D7760}
 LanguageToolID={C68E5105-1196-4333-A0BF-3DC57271E614}
 LanguageToolLocation=C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\bin\pic32-ld.exe
 PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)|C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\lib;C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\pic32mx\lib;||$(LKRDIR)||
-SOLK=<src>|src\pwm.c||<obj>||<lib>||<lkr>||
+SOLK=<src>|src\try3.c||<obj>||<lib>||<lkr>||
 SuiteArgsString=
 ToolArgsString=-o"$(BINDIR_)$(TARGETBASE).$(TARGETSUFFIX)" -Map="$(BINDIR_)$(TARGETBASE).map"
 TraceCmdString=
@@ -35,7 +35,7 @@ LanguageToolSuiteID={14495C23-81F8-43F3-8A44-859C583D7760}
 LanguageToolID={C68E5105-1196-4333-A0BF-3DC57271E614}
 LanguageToolLocation=C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\bin\pic32-ld.exe
 PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)|C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\lib;C:\Microchip Starter Kits\PIC32 Starter Kits\MPLAB C32 Suite\pic32mx\lib;||$(LKRDIR)||
-SOLK=<src>|src\pwm.c||<obj>||<lib>||<lkr>||
+SOLK=<src>|src\try3.c||<obj>||<lib>||<lkr>||
 SuiteArgsString=
 ToolArgsString=-o"$(BINDIR_)$(TARGETBASE).$(TARGETSUFFIX)" -Map="$(BINDIR_)$(TARGETBASE).map"
 TraceCmdString=

@@ -6,7 +6,7 @@
 /* define macros for LCD instructions*/
 #define LCD_IDLE 0x33
 #define LCD_2_LINE_4_BITS 0x28
-#define LCD_2_LINE_8_BITS 0x38
+#define LCD_2_LINE_8_BITS 0x38 
 #define LCD_DSP_CSR 0x0c
 #define LCD_CLR_DSP 0x01
 #define LCD_CSR_INC 0x06
@@ -31,7 +31,8 @@ const uchar startStr1[] = "Digital Clock";
 const uchar startStr2[] = "SJTU JI - LAB4";
 
 /* Function prototypes */
-void MCU_init(void);
+
+//void MCU_init(void);
 void LCD_init(void);
 void LCD_putchar(uchar c);
 void LCD_puts(const uchar *s);

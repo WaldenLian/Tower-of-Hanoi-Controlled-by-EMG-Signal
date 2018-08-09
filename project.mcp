@@ -33,8 +33,8 @@ file_001=no
 file_000=no
 file_001=no
 [FILE_INFO]
-file_000=src\pwm.c
-file_001=Y:\Desktop\VE373\VE373-Embedded-Systems\lab7\LCD.h
+file_000=src\try3.c
+file_001=src\LCD.h
 [SUITE_INFO]
 suite_guid={14495C23-81F8-43F3-8A44-859C583D7760}
 suite_state=

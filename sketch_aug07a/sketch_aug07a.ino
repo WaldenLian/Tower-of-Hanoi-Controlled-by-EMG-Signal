@@ -22,6 +22,10 @@ void drawSelectBox(int rod_pos);
 void drawPickedDisk(int disk_length, int rod_pos);
 void drawDisk(int disk_length, int rod_pos, int stack_pos);
 void drawGrid(void);
+int isSuccess(void);
+void stackOverallInit(void);
+void flagInit(void);
+
 
 Stack *initStack();
 void freeStack(Stack *rod);
@@ -45,25 +49,46 @@ int MAX_DISK_LENGTH = 60;
 #define rxPin 6
 #define txPin 7
 SoftwareSerial mySerial = SoftwareSerial(rxPin, txPin);
-Stack *rod1 = initStack();
-Stack *rod2 = initStack();
-Stack *rod3 = initStack();
-Stack *diskState[] = {rod1, rod2, rod3}; 
+Stack *diskState[3];
 ListNode *movedNode = NULL;
 int select_box_index = 0;
-int picked_flag = 1;
+int picked_flag = 0;
+int error_flag = 0;
+int success_flag = 0;
+int reset_flag = 0;
+int INIT_ROD_INDEX = 0;
 
-// Follow the routine given by SPI example (DigitalPotControl)
-void setup(void) {
-  u8g2.begin();
-  LCD_init();
-  // Init the rod stack
+void stackOverallInit(void) {
+  Stack *rod1 = initStack();
+  Stack *rod2 = initStack();
+  Stack *rod3 = initStack();
   ListNode *n1 = initNode(60);
   ListNode *n2 = initNode(40);
   ListNode *n3 = initNode(20);
   pushElement(rod1, n1);
   pushElement(rod1, n2);
   pushElement(rod1, n3);
+  diskState[0] = rod1;
+  diskState[1] = rod2;
+  diskState[2] = rod3;
+}
+
+void flagInit(void) {
+  movedNode = NULL;
+  select_box_index = 0;
+  picked_flag = 0;
+  error_flag = 0;
+  success_flag = 0;
+  reset_flag = 0;
+}
+
+// Follow the routine given by SPI example (DigitalPotControl)
+void setup(void) {
+  u8g2.begin();
+  LCD_init();
+  // Init the rod stack
+  stackOverallInit();
+  flagInit();
   
   pinMode(rxPin, INPUT);
   pinMode(txPin, OUTPUT);
@@ -77,14 +102,29 @@ void loop(void) {
     drawGrid();
     drawSelectBox(select_box_index);
     drawOverallStack();
+    if (error_flag == 1) {
+      u8g2.setCursor(30, 70);
+      u8g2.print("[Error] Disk Disorder!");
+      error_flag = 0;
+    }
+    if (success_flag == 1) {
+      u8g2.setCursor(30, 70);
+      u8g2.print("[Success] Excellent! :)");
+    }
+
+    if (reset_flag == 1) {
+      int i;
+      for (i = 0; i < sizeof(diskState)/sizeof(Stack *); ++i) {
+        freeStack(diskState[i]);
+      }
+      stackOverallInit();
+      flagInit();
+    }
   } while ( u8g2.nextPage() );
 
-  // printStack(diskState[0]);
-  // Serial.println(">>>>>>");
-  // Serial.println(movedNode->value);
   if (mySerial.available() > 0) {
     char cmd = mySerial.read();
-    // Serial.println(text);
+    Serial.println(cmd);
     // Left (Left/None) => A
     // Right (Right/None) => B
     // EMG (PickUp/PutDown) => C/D (1/0)
@@ -96,13 +136,17 @@ void loop(void) {
         break;
       case 'B':
         select_box_index++;
-        if (select_box_index > 0) select_box_index = 2;
+        if (select_box_index > 2) select_box_index = 2;
         break;
       case 'C':
         picked_flag = 1;
         break;
       case 'D':
         picked_flag = 0;
+        break;
+      case 'R':
+        reset_flag = 1;
+        mySerial.write('R');
         break;
       default:
         break;
@@ -143,10 +187,11 @@ void drawPickedDisk(int disk_length, int rod_pos)
   int x, y;
   x = FIRST_ROD_POS + (rod_pos * ROD_GAP) - disk_length / 2;
   y = 20;
+  /*
   Serial.println(x);
   Serial.println(y);
   Serial.println(disk_length);
-  Serial.println(DISK_HEIGHT);
+  Serial.println(DISK_HEIGHT);*/
   u8g2.drawBox(x, y, disk_length, DISK_HEIGHT);
 }
 
@@ -179,8 +224,18 @@ void drawSelectBox(int rod_pos)
     }
   } else {
     if (movedNode != NULL) {
-      pushElement(diskState[select_box_index], movedNode);
-      movedNode = NULL;
+      if (movedNode->value > diskState[select_box_index]->top->value) {
+        error_flag = 1;
+        drawPickedDisk(movedNode->value, select_box_index);
+      } else {
+        pushElement(diskState[select_box_index], movedNode);
+        mySerial.write('S'); // indicate that one successful step has been taken
+        movedNode = NULL; 
+        if (isSuccess() == 1 && success_flag == 0) {
+          success_flag = 1;
+          mySerial.write('K');
+        }
+      }
     }
   }
 }
@@ -275,3 +330,18 @@ void drawOverallStack() {
   }
 }
 
+int isSuccess(void) {
+  if (select_box_index != INIT_ROD_INDEX) {
+    Stack *current_stack = diskState[select_box_index];
+    ListNode *it = current_stack->top;
+    if (it->next == NULL) {
+      return 0;
+    } else {
+      while (it && it->next) {
+        if (it->value > it->next->value) return 0;
+        it = it->next;
+      } 
+      return (getSize(diskState[select_box_index]) == 3) ? 1 : 0;
+    }
+  }
+}
