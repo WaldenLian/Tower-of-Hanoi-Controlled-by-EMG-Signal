@@ -49,6 +49,7 @@ int MAX_DISK_LENGTH = 60;
 #define rxPin 6
 #define txPin 7
 SoftwareSerial mySerial = SoftwareSerial(rxPin, txPin);
+SoftwareSerial musicSerial = SoftwareSerial(2, 3);
 Stack *diskState[3];
 ListNode *movedNode = NULL;
 int select_box_index = 0;
@@ -92,8 +93,10 @@ void setup(void) {
   
   pinMode(rxPin, INPUT);
   pinMode(txPin, OUTPUT);
+  
   mySerial.begin(9600);
   Serial.begin(9600);
+  musicSerial.begin(9600);
 }
 
 void loop(void) {
@@ -122,6 +125,7 @@ void loop(void) {
     }
   } while ( u8g2.nextPage() );
 
+  mySerial.listen();
   if (mySerial.available() > 0) {
     char cmd = mySerial.read();
     Serial.println(cmd);
@@ -146,7 +150,8 @@ void loop(void) {
         break;
       case 'R':
         reset_flag = 1;
-        mySerial.write('R');
+        musicSerial.listen();
+        musicSerial.write('O');
         break;
       default:
         break;

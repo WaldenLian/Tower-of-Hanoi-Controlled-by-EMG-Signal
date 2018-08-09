@@ -3,6 +3,7 @@
 #include <sys/kmem.h>
 
 #define SYS_FREQ (80000000)
+#define EMG_th (0.6)
 int ADCValue0;
 int ADCValue1;
 int ADCValue2;
@@ -13,9 +14,9 @@ uchar step_reception;
 int total_step = 0;
 int success_flag = 0;
 int reset_flag = 0;
-unsigned int acc = 1000;
+unsigned int acc = 16;
 int pwm = 0;
-int MAX_PWM = 8000;
+int MAX_PWM = 256;
 int cnt = 0;
 // int MAX_PWM = 0x2000;
 int put_down_flag = 0;
@@ -63,7 +64,7 @@ void CN_ISR(void)
             U1ATXREG = pkt;
             // DCH0CONSET = 0x80;
             // if (DCH0INTbits.CHERIF || DCH0INTbits.CHTAIF || DCH0INTbits.CHBCIF) return;
-            DelayMs(10);
+            DelayMs(100);
             reset_flag = 1;
         }
     }
@@ -71,20 +72,18 @@ void CN_ISR(void)
     IEC1SET = 0x0001;
 }
 
+#pragma interrupt DMA_ISR ipl1 vector 36
+void DMA_ISR(void)
+{
+    IFS1CLR = 0x00010000;
+}
+
 #pragma interrupt UART_RX_ISR ipl4 vector 24
 void UART_RX_ISR (void)
 {
 	//IEC0CLR = 0x08000000;
     IFS0CLR = 0x08000000;
-    //step_reception = (uchar) U1ARXREG;
-    DCH0CONSET = 0x80;
-    DelayMsec(1000);
-	if (step_reception == 'R') {
-		LCD_goto(0x00);
-    	RS = 1;
-    	LCD_putchar(step_reception);
-    	DelayMsec(1000);
-	}
+    step_reception = (uchar) U1ARXREG;
 
     if (step_reception == 'S') {
         // Maximal Step: 99
@@ -130,7 +129,7 @@ int main()
     ADC_init();
     UART_init();
     CN_init();
-    DMA_init();
+    // DMA_init();
     PWM_init();
     LCD_init();
     uchar stepStr[] = "Step: 00";
@@ -205,17 +204,14 @@ void PWM_init()
 
 void PWM_CTR(void)
 {
-    DelayMsec(10);
-    if (put_down_flag) {
-        if (pwm <= MAX_PWM) {
-            pwm += acc;
-            // cnt++;
-        }
+    int count = 0;
+    if (put_down_flag) count = 5000;
+    while (count>0){
+        if (pwm <= MAX_PWM) pwm += acc;
+        else pwm = 0;
+        count--;
     }
-    if (pwm >= MAX_PWM) {
-        pwm = 0;
-        put_down_flag = 0;
-    }
+    put_down_flag = 0;
 }
 
 void DMA_init(void)
@@ -224,17 +220,26 @@ void DMA_init(void)
     IFS1CLR = 0x00010000;   // clear existing DMA channel 0 interrupt flag
     DMACONSET = 0x00008000; // enable the DMA controller
     DCH0CON = 0x3;          // channel 0 disabled, priority 3, no chaining
-    DCH0ECON = 0;           // no start or stop IRQ, no pattern match
+    // DCH0ECON = 0;           // no start or stop IRQ, no pattern match
+    DCH0ECONbits.CHSIRQ = 28; // U1ATX
+    DCH0ECONbits.SIRQEN = 1; // Channel Start IRQ Enable
 
     /* Setup the DMA transfer */
-    DCH0SSA = KVA_TO_PA((void *) &U1ARXREG);        // Set the source pointer at the array address in memory
-    DCH0DSA = KVA_TO_PA((void *) &step_reception);   // Set the destination pointer at the UART1A transmission buffer
-    DCH0SSIZ = sizeof(step_reception);            // Set the source size as the size of the data array
+    DCH0SSA = KVA_TO_PA((void *) &pkt);        // Set the source pointer at the array address in memory
+    DCH0DSA = KVA_TO_PA((void *) &U1ATXREG);   // Set the destination pointer at the UART1A transmission buffer
+    DCH0SSIZ = 1;            // Set the source size as the size of the data array
     DCH0CSIZ = 1;                       // Each time, transfer 1 Byte
-    DCH0DSIZ = 1;                       // Set the destination size as 1 Byte
+    DCH0DSIZ = 1;                       // Set the destination size as 1 Byte 
 
+    /* Set up the DMA interrupt */  
     DCH0INTCLR = 0x00ff00ff; // clear existing events, disable all interrupts
-    // DCH0CONSET = 0x80;       // turn channel on   
+    DCH0INTbits.CHDDIE = 1; // enable the channel destination done interrupt
+    DCH0INTbits.CHDDIF = 0; // clear the channel destination done interrupt flag
+    IPC9SET = 0x00000004; // priority 1
+    IFS1CLR = 0x00010000;
+    IEC1CLR = 0x00010000;
+
+    DCH0CONSET = 0x80;       // turn channel on
 }
 
 void CN_init(void)
@@ -268,6 +273,11 @@ void UART_init(void)
     IFS0CLR = 0x08000000; // Clear the interrupt flag
     IEC0SET = 0x08000000; // Enable the interrupt
     IPC6SET = 0x00000010; // priority 4 and sub-group priority 0
+
+    // IFS0CLR = 0x10000000; // Clear the TX interrupt flag
+    // IEC0SET = 0x10000000;
+    // U1ASTAbits.UTXISEL1 = 0;
+    // IEC0CLR = 0x10000000; // Disable the TX interrupt
 
 	//asm("ei");
     U1ASTASET = 0x1400; // Enable transmission
@@ -330,14 +340,14 @@ void pressure()
             // while (pollCnt--);
             DelayMs(1000);
         }
-        if (a2 >= 1.5) {
+        if (a2 >= EMG_th) {
             pkt = 'C';
             U1ATXREG = pkt; 
             // DCH0CONSET = 0x80;
             // if (DCH0INTbits.CHERIF || DCH0INTbits.CHTAIF || DCH0INTbits.CHBCIF) return;
             DelayMs(1000);
         }
-        if (a2 < 1.5) {
+        if (a2 < EMG_th) {
             pkt = 'D';
             U1ATXREG = pkt; 
             // DCH0CONSET = 0x80;
