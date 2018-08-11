@@ -32,7 +32,6 @@ const uchar startStr2[] = "SJTU JI - LAB4";
 
 /* Function prototypes */
 
-//void MCU_init(void);
 void LCD_init(void);
 void LCD_putchar(uchar c);
 void LCD_puts(const uchar *s);

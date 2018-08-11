@@ -49,7 +49,7 @@ int MAX_DISK_LENGTH = 60;
 #define rxPin 6
 #define txPin 7
 SoftwareSerial mySerial = SoftwareSerial(rxPin, txPin);
-SoftwareSerial musicSerial = SoftwareSerial(2, 3);
+//SoftwareSerial musicSerial = SoftwareSerial(2, 3);
 Stack *diskState[3];
 ListNode *movedNode = NULL;
 int select_box_index = 0;
@@ -96,7 +96,7 @@ void setup(void) {
   
   mySerial.begin(9600);
   Serial.begin(9600);
-  musicSerial.begin(9600);
+  //musicSerial.begin(9600);
 }
 
 void loop(void) {
@@ -125,7 +125,7 @@ void loop(void) {
     }
   } while ( u8g2.nextPage() );
 
-  mySerial.listen();
+  //mySerial.listen();
   if (mySerial.available() > 0) {
     char cmd = mySerial.read();
     Serial.println(cmd);
@@ -136,7 +136,8 @@ void loop(void) {
     {
       case 'A':
         select_box_index--;
-        if (select_box_index < 0) select_box_index = 0;
+//        if (select_box_index < 0) select_box_index = 0;
+        if (select_box_index < 0) select_box_index = 2;
         break;
       case 'B':
         select_box_index++;
@@ -150,8 +151,8 @@ void loop(void) {
         break;
       case 'R':
         reset_flag = 1;
-        musicSerial.listen();
-        musicSerial.write('O');
+        //musicSerial.listen();
+        //musicSerial.write('O');
         break;
       default:
         break;
@@ -234,11 +235,13 @@ void drawSelectBox(int rod_pos)
         drawPickedDisk(movedNode->value, select_box_index);
       } else {
         pushElement(diskState[select_box_index], movedNode);
-        mySerial.write('S'); // indicate that one successful step has been taken
         movedNode = NULL; 
         if (isSuccess() == 1 && success_flag == 0) {
           success_flag = 1;
           mySerial.write('K');
+        } else {
+          mySerial.write('S'); // indicate that one successful step has been taken
+          Serial.println('S');
         }
       }
     }

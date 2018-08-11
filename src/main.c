@@ -1,297 +1,378 @@
-/*
- * File:        main.c
- * Author:      Syed Tahmid Mahbub
- * Target PIC:  PIC32MX250F128B
- */
+#include "LCD.h"
+#include <plib.h>
+#include <sys/kmem.h>
+
+#define EMG_th (0.6)
+int ADCValue0;
+int ADCValue1;
+int ADCValue2;
+int readD;
+uchar pkt;
+int time_result = 0;
+uchar step_reception;
+int total_step = 0;
+int success_flag = 0;
+int reset_flag = 0;
+unsigned int acc = 16;
+int pwm = 0;
+int MAX_PWM = 256;
+int cnt = 0;
+int put_down_flag = 0;
+void MCU_init(void);
+void ADC_init(void);
+void pressure(void);
+void UART_init(void);
+void CN_init(void);
+void PWM_init(void);
+void PWM_CTR(void);
 
 
-#include "config.h"
-#include "tft_master.h"
-#include "tft_gfx.h"
-
-/* Demo code for interfacing TFT (ILI9340 controller) to PIC32
- * The library has been modified from a similar Adafruit library
- * written for Arduino.
- * Below is the original text header from Adafruit, followed by the code
- */
-
-/***************************************************
-  This is an example sketch for the Adafruit 2.2" SPI display.
-  This library works with the Adafruit 2.2" TFT Breakout w/SD card
-  ----> http://www.adafruit.com/products/1480
-
-  Check out the links above for our tutorials and wiring diagrams
-  These displays use SPI to communicate, 4 or 5 pins are required to
-  interface (RST is optional)
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-
-  Written by Limor Fried/Ladyada for Adafruit Industries.
-  MIT license, all text above must be included in any redistribution
- ****************************************************/
-
-void testCircles(unsigned char radius, unsigned short color);
-void testFastLines(unsigned short color1, unsigned short color2);
-void testFillScreen(void);
-void testFilledCircles(unsigned char radius, unsigned short color);
-void testFilledRects(unsigned short color1, unsigned short color2);
-void testFilledRoundRects(void);
-void testRoundRects(void);
-void testFilledTriangles(void);
-void testLines(unsigned short color);
-void testRects(unsigned short color);
-void testRoundRects(void);
-void testText(void);
-void testTriangles(void);
-
-char buffer[20];
-
-void main(void) {
- SYSTEMConfigPerformance(PBCLK);
-  unsigned char rotation;
-  ANSELA = 0; ANSELB = 0; CM1CON = 0; CM2CON = 0;
-  tft_init_hw();
-  tft_begin();
-
-  testFillScreen();
-  testText();
-  testLines(ILI9340_CYAN);
-  testFastLines(ILI9340_RED, ILI9340_BLUE);
-  testRects(ILI9340_GREEN);
-  testFilledRects(ILI9340_YELLOW, ILI9340_MAGENTA);
-  testFilledCircles(10, ILI9340_MAGENTA);
-  testCircles(10, ILI9340_WHITE);
-  testTriangles();
-  testFilledTriangles();
-  testRoundRects();
-  testFilledRoundRects();
-
-
-  while (1){
-      for(rotation=0; rotation<4; rotation++) {
-        tft_setRotation(rotation);
-        testText();
-        delay_ms(2000);
-      }
-  }
-
+/* Timer2 ISR - handling OC-PWM module operations */
+#pragma interrupt PWM_ISR ipl3 vector 8
+void PWM_ISR(void)
+{
+    OC3RS = pwm;      //update duty cycle register
+    IFS0CLR = 0x0100; //clear Timer 2 interrupt flag
 }
 
-void testFillScreen() {
-  tft_fillScreen(ILI9340_BLACK);
-  tft_fillScreen(ILI9340_RED);
-  tft_fillScreen(ILI9340_GREEN);
-  tft_fillScreen(ILI9340_BLUE);
-  tft_fillScreen(ILI9340_BLACK);
-}
-
-void testText() {
-  tft_fillScreen(ILI9340_BLACK);
-  tft_setCursor(0, 0);
-  tft_setTextColor(ILI9340_WHITE);  tft_setTextSize(1);
-  tft_writeString("Hello World!\n");
-  tft_setTextColor(ILI9340_YELLOW); tft_setTextSize(2);
-  sprintf(buffer,"%.2f\n", 1234.56);
-  tft_writeString(buffer);
-  tft_setTextColor(ILI9340_RED);    tft_setTextSize(3);
-  tft_writeString("DEADBEEF\n");
-  tft_setTextColor(ILI9340_GREEN);
-  tft_setTextSize(5);
-  tft_writeString("Groop\n");
-  tft_setTextSize(2);
-  tft_writeString("I implore thee\n");
-  tft_setTextSize(1);
-
-  tft_writeString("my foonting turlingdromes.\n");
-  tft_writeString("And hooptiously drangle me\n");
-  tft_writeString("with crinkly bindlewurdles,\n");
-  tft_writeString("Or I will rend thee\n");
-  tft_writeString("in the gobberwarts\n");
-  tft_writeString("with my blurglecruncheon,\n");
-  tft_writeString("see if I don't!\n");
-}
-
-void testLines(unsigned short color) {
-  int           x1, y1, x2, y2,
-                w = _width,
-                h = _height;
-
-  tft_fillScreen(ILI9340_BLACK);
-
-  x1 = y1 = 0;
-  y2    = h - 1;
-  for(x2=0; x2<w; x2+=6) tft_drawLine(x1, y1, x2, y2, color);
-  x2    = w - 1;
-  for(y2=0; y2<h; y2+=6) tft_drawLine(x1, y1, x2, y2, color);
-  
-  tft_fillScreen(ILI9340_BLACK);
-
-  x1    = w - 1;
-  y1    = 0;
-  y2    = h - 1;
-  for(x2=0; x2<w; x2+=6) tft_drawLine(x1, y1, x2, y2, color);
-  x2    = 0;
-  for(y2=0; y2<h; y2+=6) tft_drawLine(x1, y1, x2, y2, color);
-
-  tft_fillScreen(ILI9340_BLACK);
-
-  x1    = 0;
-  y1    = h - 1;
-  y2    = 0;
-  for(x2=0; x2<w; x2+=6) tft_drawLine(x1, y1, x2, y2, color);
-  x2    = w - 1;
-  for(y2=0; y2<h; y2+=6) tft_drawLine(x1, y1, x2, y2, color);
-
-  tft_fillScreen(ILI9340_BLACK);
-
-  x1    = w - 1;
-  y1    = h - 1;
-  y2    = 0;
-  for(x2=0; x2<w; x2+=6) tft_drawLine(x1, y1, x2, y2, color);
-  x2    = 0;
-  for(y2=0; y2<h; y2+=6) tft_drawLine(x1, y1, x2, y2, color);
-
-}
-
-void testFastLines(unsigned short color1, unsigned short color2) {
-  int x, y, w, h;
-  w = _width;
-  h = _height;
-
-  tft_fillScreen(ILI9340_BLACK);
-  for(y=0; y<h; y+=5) tft_drawFastHLine(0, y, w, color1);
-  for(x=0; x<w; x+=5) tft_drawFastVLine(x, 0, h, color2);
-
-}
-
-void testRects(unsigned short color) {
-  int           n, i, i2,
-                cx = _width  / 2,
-                cy = _height / 2;
-
-  tft_fillScreen(ILI9340_BLACK);
-  n     = min(_width, _height);
-  for(i=2; i<n; i+=6) {
-    i2 = i / 2;
-    tft_drawRect(cx-i2, cy-i2, i, i, color);
-  }
-
-}
-
-void testFilledRects(unsigned short color1, unsigned short color2) {
-  int           n, i, i2,
-                cx = _width  / 2 - 1,
-                cy = _height / 2 - 1;
-
-  tft_fillScreen(ILI9340_BLACK);
-  n = min(_width, _height);
-  for(i=n; i>0; i-=6) {
-    i2    = i / 2;
-    tft_fillRect(cx-i2, cy-i2, i, i, color1);
-    tft_drawRect(cx-i2, cy-i2, i, i, color2);
-  }
-
-}
-
-void testFilledCircles(unsigned char radius, unsigned short color) {
-  int x, y, w = _width, h = _height, r2 = radius * 2;
-
-  tft_fillScreen(ILI9340_BLACK);
-  for(x=radius; x<w; x+=r2) {
-    for(y=radius; y<h; y+=r2) {
-      tft_fillCircle(x, y, radius, color);
+#pragma interrupt CN_ISR ipl7 vector 26
+void CN_ISR(void)
+{
+    IEC1CLR = 0x0001;
+    if (readD != PORTDbits.RD6) {
+        readD = PORTDbits.RD6; // Clear the mismatch
+        if (PORTDbits.RD6) {
+            pkt = 'R';
+            U1ATXREG = pkt;
+            DelayMsec(100);
+            reset_flag = 1;
+        }
     }
-  }
-
-  ////return micros() - start;
+    IFS1CLR = 0x0001;
+    IEC1SET = 0x0001;
 }
 
-void testCircles(unsigned char radius, unsigned short color) {
-  //unsigned long start;
-  int           x, y, r2 = radius * 2,
-                w = _width  + radius,
-                h = _height + radius;
+#pragma interrupt UART_RX_ISR ipl4 vector 24
+void UART_RX_ISR (void)
+{
+    asm("di");
+	IEC0CLR = 0x08000000;
+    IFS0CLR = 0x08000000;
+    step_reception = (uchar) U1ARXREG;
 
-  // Screen is not cleared for this one -- this is
-  // intentional and does not affect the reported time.
-  //start = micros();
-  for(x=0; x<w; x+=r2) {
-    for(y=0; y<h; y+=r2) {
-      tft_drawCircle(x, y, radius, color);
+    if (step_reception == 'K') {
+        // total_step++;
+        success_flag = 1;
+        IEC0CLR = 0x00001000;
+    } else if (step_reception == 'S') {
+        // Maximal Step: 99
+        total_step++;
+        uchar stepStr[] = "Step:   ";
+        stepStr[6] = total_step/10 + '0';
+        stepStr[7] = total_step%10 + '0';
+        LCD_goto(0x00);
+        LCD_puts(stepStr);
+        put_down_flag = 1;
     }
-  }
-
-  //return micros() - start;
+	IEC0SET = 0x08000000;
+    asm("ei");
 }
 
-void testTriangles() {
-  //unsigned long start;
-  int           n, i, cx = _width  / 2 - 1,
-                      cy = _height / 2 - 1;
-
-  tft_fillScreen(ILI9340_BLACK);
-  n     = min(cx, cy);
-  //start = micros();
-  for(i=0; i<n; i+=5) {
-    tft_drawTriangle(
-      cx    , cy - i, // peak
-      cx - i, cy + i, // bottom left
-      cx + i, cy + i, // bottom right
-      tft_Color565(0, 0, i));
-  }
-
-  //return micros() - start;
+#pragma interrupt T3_ISR ipl6 vector 12
+void T3_ISR (void)
+{
+    IFS0CLR = 0x00001000;
+    time_result += 1; // result * 0.1 second
+    if (time_result%10 == 0) {
+        int total_second = time_result/10;
+        int second = total_second%60;
+        int minute = total_second/60;
+        uchar timeStr[] = "Time:      ";
+        timeStr[6] = minute/10 + '0';
+        timeStr[7] = minute%10 + '0';
+        timeStr[8] = ':';
+        timeStr[9] = second/10 + '0';
+        timeStr[10] = second%10 + '0';
+        LCD_goto(0x40);
+        LCD_puts(timeStr);
+    }
+    // Display the time here in the format 00:00
 }
 
-void testFilledTriangles() {
-  //unsigned long start, t = 0;
-  int           i, cx = _width  / 2 - 1,
-                   cy = _height / 2 - 1;
-
-  tft_fillScreen(ILI9340_BLACK);
-  //start = micros();
-  for(i=min(cx,cy); i>10; i-=5) {
-    //start = micros();
-    tft_fillTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-      tft_Color565(0, i, i));
-    //t += micros() - start;
-    tft_drawTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-      tft_Color565(i, i, 0));
-  }
-
-  //return t;
+int main()
+{
+    OSCSetPBDIV(OSC_PB_DIV_1); //configure PBDIV so PBCLK = SYSCLK
+    MCU_init();
+    ADC_init();
+    UART_init();
+    CN_init();
+    PWM_init();
+    LCD_init();
+    uchar stepStr[] = "Step: 00";
+    LCD_goto(0x00);
+    LCD_puts(stepStr);
+    while(1){
+        if (success_flag == 1) {
+            total_step++;
+            uchar stepStr[] = "Step:   ";
+            stepStr[6] = total_step/10 + '0';
+            stepStr[7] = total_step%10 + '0';
+            LCD_goto(0x00);
+            LCD_puts(stepStr);
+            success_flag = 0;
+        }
+        uchar stepStr[] = "Step:   ";
+        stepStr[6] = total_step/10 + '0';
+        stepStr[7] = total_step%10 + '0';
+        LCD_goto(0x00);
+        LCD_puts(stepStr);
+        if (reset_flag == 1) {
+            success_flag = 0;
+            reset_flag = 0;
+            time_result = 0;
+            total_step = 0;
+            IEC0SET = 0x00001000;
+            TMR3 = 0;
+            uchar stepStr[] = "Step:   ";
+            stepStr[6] = total_step/10 + '0';
+            stepStr[7] = total_step%10 + '0';
+            LCD_goto(0x00);
+            LCD_puts(stepStr);
+            pwm = 0;
+            put_down_flag = 0;
+        }
+        pressure();
+        PWM_CTR();
+    }
 }
 
-void testRoundRects() {
-  //unsigned long start;
-  int           w, i, i2,
-                cx = _width  / 2 - 1,
-                cy = _height / 2 - 1;
+void MCU_init(void)
+{
+    INTCONbits.MVEC = 1;
+    asm("ei");
+    TRISDbits.TRISD6 = 1;
+    TRISDbits.TRISD0 = 0;
+    TRISDbits.TRISD1 = 0;
+    TRISE = 0xFF00;
 
-  tft_fillScreen(ILI9340_BLACK);
-  w     = min(_width, _height);
-  //start = micros();
-  for(i=0; i<w; i+=6) {
-    i2 = i / 2;
-    tft_drawRoundRect(cx-i2, cy-i2, i, i, i/8, tft_Color565(i, 0, 0));
-  }
+    /* Timer control */
+    T4CON = 0x0;
+    T5CON = 0x0;
+    T4CON = 0x0038;     // Stop Timer4 and clear control register
+                        // prescale 1:8, internal clock source
+    PR4 = 0xFFFFFFFF;
+    TMR4 = 0x0;
+    T4CONSET = 0x8000;
 
+    /* Timer 3 */
+    IPC3SET = 0x00000018; // priority 6
+    IFS0CLR = 0x00001000;
+    IEC0SET = 0x00001000;
+    T3CON = 0x0;
+    T3CON = 0x0070; // 1:256
+    PR3 = 31249; // 0.1 second
+    TMR3 = 0;
+
+    T3CONSET = 0x8000;
 }
 
-void testFilledRoundRects() {
-  int i, i2, cx, cy;
-
-  cx = _width  / 2 - 1;
-  cy = _height / 2 - 1;
-
-  tft_fillScreen(ILI9340_BLACK);
-
-
-  for(i=min(_width, _height); i>20; i-=6) {
-    i2 = i / 2;
-    tft_fillRoundRect(cx-i2, cy-i2, i, i, i/8, tft_Color565(0, i, 0));
-  }
-
-
+/* Initialize OC module and timer base - Timer 2 */
+void PWM_init()
+{
+    OC3CON = 0x0000; //stop OC1 module
+    OC3RS = 0;       //initialize duty cycle register
+    OC3R = 0;        //initialize OC1R register for the first time
+    OC3CON = 0x0006; //OC1 16-bit, Timer 2, in PWM mode w/o FP
+    PR2 = 0x00FF;    //PWM signal period = 0x100*1/PBCLK = 32 us
+    //Thus, PWM Frequency = 32.25 kHz
+    IFS0CLR = 0x00000100; //clear Timer 2 interrupt
+    IEC0SET = 0x00000100; //enable Timer 2 interrupt
+    IPC2SET = 0x0000000F; //Timer 2 interrupt priority 3, subpriority 3
+    T2CONSET = 0x8000;    //start Timer 2
+    OC3CONSET = 0x8000;   //enable OC1 module for PWM generation
 }
+
+void PWM_CTR(void)
+{
+    int count = 0;
+    if (put_down_flag) count = 5000;
+    while (count>0){
+        if (pwm <= MAX_PWM) pwm += acc;
+        else pwm = 0;
+        count--;
+    }
+    put_down_flag = 0;
+}
+
+void CN_init(void)
+{
+    asm("di");
+    CNCON = 0x8000;
+    CNEN = 0x00008000; // RD6 => CNEN15
+    CNPUE = 0x00008000;
+
+    readD = PORTDbits.RD6;
+
+    IPC6SET = 0x001c0000;
+    IPC6SET = 0x00030000;
+    IFS1CLR = 0x0001;
+    IEC1SET = 0x0001;
+    asm("ei");
+}
+
+void UART_init(void)
+{
+    // UART1
+    //asm("di");
+    U1ABRG = 2082;// Set the Baud rate
+    U1ASTA = 0;
+    U1AMODESET = 0x8000; // enable the UART module
+	U1AMODESET = 0x0008; // BRGH = 1
+
+    // Recevier setting
+    U1ASTAbits.URXEN = 1; // enable the UART receiver
+
+    IFS0CLR = 0x08000000; // Clear the interrupt flag
+    IEC0SET = 0x08000000; // Enable the interrupt
+    IPC6SET = 0x00000010; // priority 4 and sub-group priority 0
+
+    // IFS0CLR = 0x10000000; // Clear the TX interrupt flag
+    // IEC0SET = 0x10000000;
+    // U1ASTAbits.UTXISEL1 = 0;
+    // IEC0CLR = 0x10000000; // Disable the TX interrupt
+
+	//asm("ei");
+    U1ASTASET = 0x1400; // Enable transmission
+}
+
+void ADC_init()
+{
+    INTCONbits.MVEC = 1;
+    asm("ei");
+    AD1PCFG = 0xfff8; //AN0, AN1 analog
+    AD1CSSL = 0x0007;
+
+    AD1CON1bits.FORM = 0b000; //integer 16 bits
+    AD1CON1bits.SSRC = 0b111; //auto sample
+    AD1CON1bits.CLRASAM = 0; //normal operation
+    AD1CON1bits.ASAM = 1; //SAMP = 0, sampling
+
+    AD1CON2bits.VCFG = 0; //AVDD-AVSS
+    AD1CON2bits.CSCNA = 1; //scan
+    AD1CON2bits.SMPI = 0b0010; //3th sample
+    AD1CON2bits.BUFM = 0; //16-word buffer
+    AD1CON2bits.ALTS = 0; //MUXA
+
+    AD1CON3bits.ADRC = 0; //PBCLK
+    AD1CON3bits.SAMC = 0x02; //sample time bits = 4TAD
+    AD1CON3bits.ADCS = 0x07; //TAD = 16TPB
+
+    AD1CON1bits.ON = 1;//start ADC module
+}
+
+void pressure()
+{
+	ADCValue0 = ADC1BUF0;
+    ADCValue1 = ADC1BUF1;
+	ADCValue2 = ADC1BUF2;
+
+    double a0 = ADCValue0/1024.0*5.0;
+    double a1 = ADCValue1/1024.0*5.0;
+    double a2 = ADCValue2/1024.0*9.0;
+
+    if (success_flag == 0) {
+        if (a0 < 3) {
+            pkt = 'A';
+            U1ATXREG = pkt; 
+            DelayMsec(1000);
+        }
+        if (a1 < 3) {
+            pkt = 'C';
+            U1ATXREG = pkt; 
+            DelayMsec(1000);
+        } 
+        if (a1 >= 3) {
+            pkt = 'D';
+            U1ATXREG = pkt; 
+            DelayMsec(1000);
+        } 
+        // if (a2 >= EMG_th) {
+        //     pkt = 'C';
+        //     U1ATXREG = pkt; 
+        //     DelayMsec(1000);
+        // }
+        // if (a2 < EMG_th) {
+        //     pkt = 'D';
+        //     U1ATXREG = pkt; 
+        //     DelayMsec(1000);
+        // }
+    }
+}
+
+/* initialize the LCD module */
+void LCD_init()
+{
+    DelayMsec(15);   //wait for 15 ms
+    RS = 0;          //send command
+    Data = LCD_IDLE; //function set - 8 bit interface
+    DelayMsec(5);    //wait for 5 ms
+    Data = LCD_IDLE; //function set - 8 bit interface
+    DelayUsec(100);  //wait for 100 us
+    Data = LCD_IDLE; //function set
+    DelayMsec(5);
+    Data = LCD_IDLE;
+    DelayUsec(100);
+    LCD_putchar(LCD_2_LINE_4_BITS);
+    DelayUsec(40);
+    LCD_putchar(LCD_DSP_CSR);
+    DelayUsec(40);
+    LCD_putchar(LCD_CLR_DSP);
+    DelayMsec(5);
+    LCD_putchar(LCD_CSR_INC);
+}
+/* Send one byte c (instruction or data) to the LCD */
+void LCD_putchar(uchar c)
+{
+    E = 1;
+    Data = c; //sending higher nibble
+    E = 0;    //producing falling edge on E
+    E = 1;
+    Data <<= 4; //sending lower nibble through higher 4 ports
+    E = 0;      //producing falling edge on E
+}
+/* Display a string of characters *s by continuously calling LCD_putchar() */
+void LCD_puts(const uchar *s)
+{
+    RS = 1;
+    int str_length = strlen(s);
+    int i;
+    for (i = 0; i < str_length; i++) {
+        LCD_putchar(s[i]);
+        DelayUsec(40);
+    }
+}
+/* go to a specific DDRAM address addr */
+void LCD_goto(uchar addr)
+{
+    RS = 0;
+    addr |= 0x80; // set the DB7 = 1 to indicate that DB6-DB0 denotes an address
+    LCD_putchar(addr); // send an address to the LCD
+    DelayUsec(40);
+}
+
+/* configure timer SFRs to generate num us delay*/
+void DelayUsec(int num)
+{
+    TMR4 = 0x0;
+    while (TMR4 < 10*num);
+}
+/* Call GenMsec() num times to generate num ms delay*/
+void DelayMsec(int num)
+{
+    TMR4 = 0x0;
+    while (TMR4 < 10000*num);
+}
+
+
+
+
