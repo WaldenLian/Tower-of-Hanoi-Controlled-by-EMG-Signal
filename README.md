@@ -11,6 +11,3 @@ Final project for the course of Embedded Systems. We designed and implemented th
 * UART: Communicating between PIC32 and Arduino to enable the larger LCD board.
 * PWM: Playing the music effect when the disk is put down.
 * Serial Communication (SPI): Communicating between Arduino and the larger LCD board to display the GUI for the game.
-
-### Demo
-See the video clip: https://www.bilibili.com/video/av29026204
